@@ -65,7 +65,6 @@ exit 1
 
 switch ($VersionType.ToLower()) {
 
-```
 "major" {
     $Major++
     $Minor = 0
@@ -91,7 +90,6 @@ default {
     Write-Host "  .\autotag.ps1 major"
     exit 1
 }
-```
 
 }
 
@@ -124,7 +122,6 @@ $TagLines = @()
 
 while ($true) {
 
-```
 $Line = Read-Host ">"
 
 if ([string]::IsNullOrWhiteSpace($Line)) {
@@ -132,7 +129,6 @@ if ([string]::IsNullOrWhiteSpace($Line)) {
 }
 
 $TagLines += $Line
-```
 
 }
 
