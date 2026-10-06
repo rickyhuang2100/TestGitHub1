@@ -8,7 +8,7 @@ Write-Host "Git Auto Tag"
 Write-Host "========================================"
 Write-Host ""
 
-Check Git repository
+# Check Git repository
 
 $RepoRoot = git rev-parse --show-toplevel 2>$null
 
@@ -19,7 +19,7 @@ exit 1
 
 Write-Host "Repository: $RepoRoot"
 
-Check current branch
+# Check current branch
 
 $CurrentBranch = git branch --show-current
 
@@ -31,7 +31,7 @@ exit 1
 
 Write-Host "Current branch: main"
 
-Get latest version
+# Get latest version
 
 $Version = git describe --tags --abbrev=0 2>$null
 
@@ -41,7 +41,7 @@ $Version = "v0.0.0"
 
 Write-Host "Current version: $Version"
 
-Parse version
+# Parse version
 
 $VersionClean = $Version -replace '^v', ''
 $VersionParts = $VersionClean.Split('.')
@@ -61,7 +61,7 @@ Write-Host "ERROR: Cannot parse version."
 exit 1
 }
 
-Increase version
+# Increase version
 
 switch ($VersionType.ToLower()) {
 
@@ -97,7 +97,7 @@ $NewTag = "v$Major.$Minor.$Patch"
 
 Write-Host "New version: $NewTag"
 
-Check whether tag already exists
+# Check whether tag already exists
 
 $TagExists = git tag -l $NewTag
 
@@ -106,7 +106,7 @@ Write-Host "ERROR: Tag $NewTag already exists."
 exit 1
 }
 
-Enter tag description
+# Enter tag description
 
 Write-Host ""
 Write-Host "========================================"
@@ -146,7 +146,7 @@ Write-Host "----------------------------------------"
 Write-Host $TagMessage
 Write-Host "----------------------------------------"
 
-Add all files
+# Add all files
 
 Write-Host ""
 Write-Host "Adding all files..."
@@ -158,11 +158,11 @@ Write-Host "ERROR: git add failed."
 exit 1
 }
 
-Create release commit message
+# Create release commit message
 
 $CommitMessage = "Release $NewTag`n$TagMessage"
 
-Create release commit
+# Create release commit
 
 Write-Host ""
 Write-Host "Creating release commit..."
@@ -174,7 +174,7 @@ Write-Host "ERROR: git commit failed."
 exit 1
 }
 
-Get release commit
+# Get release commit
 
 $ReleaseCommit = git rev-parse HEAD
 $ReleaseShort = git rev-parse --short HEAD
@@ -182,7 +182,7 @@ $ReleaseShort = git rev-parse --short HEAD
 Write-Host ""
 Write-Host "Release commit: $ReleaseShort"
 
-Create annotated tag
+# Create annotated tag
 
 Write-Host ""
 Write-Host "Creating tag: $NewTag"
@@ -194,7 +194,7 @@ Write-Host "ERROR: git tag failed."
 exit 1
 }
 
-Verify main and tag
+# Verify main and tag
 
 $MainCommit = git rev-parse main
 $TagCommit = git rev-parse "$NewTag^{commit}"
@@ -212,7 +212,7 @@ exit 1
 
 Write-Host "OK: main and tag point to the same commit."
 
-Push main
+# Push main
 
 Write-Host ""
 Write-Host "Pushing main..."
@@ -224,7 +224,7 @@ Write-Host "ERROR: Failed to push main."
 exit 1
 }
 
-Push tag
+# Push tag
 
 Write-Host ""
 Write-Host "Pushing tag: $NewTag"
@@ -236,7 +236,7 @@ Write-Host "ERROR: Failed to push tag."
 exit 1
 }
 
-Done
+# Done
 
 Write-Host ""
 Write-Host "========================================"
@@ -246,7 +246,7 @@ Write-Host ""
 Write-Host "Version: $NewTag"
 Write-Host "Commit : $ReleaseShort"
 Write-Host "Branch : main"
-Write-Host "Tag : $NewTag"
+Write-Host "Tag    : $NewTag"
 Write-Host ""
 Write-Host "Release notes:"
 Write-Host "----------------------------------------"
