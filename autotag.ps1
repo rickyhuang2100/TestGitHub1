@@ -47,7 +47,7 @@ $VersionClean = $Version -replace '^v', ''
 $VersionParts = $VersionClean.Split('.')
 
 if ($VersionParts.Count -ne 3) {
-Write-Host "ERROR: Version format must be vX.Y.Z."
+Write-Host "ERROR: Version format must be vX.X.X."
 exit 1
 }
 
@@ -65,6 +65,7 @@ exit 1
 
 switch ($VersionType.ToLower()) {
 
+```
 "major" {
     $Major++
     $Minor = 0
@@ -90,6 +91,7 @@ default {
     Write-Host "  .\autotag.ps1 major"
     exit 1
 }
+```
 
 }
 
@@ -122,6 +124,7 @@ $TagLines = @()
 
 while ($true) {
 
+```
 $Line = Read-Host ">"
 
 if ([string]::IsNullOrWhiteSpace($Line)) {
@@ -129,6 +132,7 @@ if ([string]::IsNullOrWhiteSpace($Line)) {
 }
 
 $TagLines += $Line
+```
 
 }
 
@@ -139,6 +143,10 @@ exit 1
 }
 
 $TagMessage = $TagLines -join "`n"
+
+# First line of tag description
+
+$FirstLine = $TagLines[0]
 
 Write-Host ""
 Write-Host "Tag message:"
@@ -160,7 +168,12 @@ exit 1
 
 # Create release commit message
 
-$CommitMessage = "Release $NewTag`n$TagMessage"
+$CommitMessage = "Release $NewTag - $FirstLine"
+
+if ($TagLines.Count -gt 1) {
+$RemainingLines = $TagLines[1..($TagLines.Count - 1)] -join "`n"
+    $CommitMessage = "$CommitMessage`n$RemainingLines"
+}
 
 # Create release commit
 
