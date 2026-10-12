@@ -1,5 +1,7 @@
 param(
-[string]$VersionType = "patch"
+    [string]$VersionType = "patch",
+
+    [string]$BranchListPath = ""
 )
 
 Write-Host ""
@@ -114,7 +116,24 @@ exit 1
 # Merge branches from release-branches.txt
 # ========================================
 
-$BranchListFile = Join-Path $RepoRoot "release-branches.txt"
+# Ask for the file path if not specified
+if ([string]::IsNullOrWhiteSpace($BranchListPath)) {
+    $BranchListPath = Read-Host "Enter the full path of release-branches.txt"
+}
+
+# Convert to absolute path
+$BranchListPath = $BranchListPath.Trim().Trim('"')
+$BranchListPath = [System.IO.Path]::GetFullPath($BranchListPath)
+
+if (-not (Test-Path -LiteralPath $BranchListPath -PathType Leaf)) {
+    Write-Host "ERROR: Branch list file not found:"
+    Write-Host $BranchListPath
+    exit 1
+}
+
+$BranchListFile = $BranchListPath
+
+Write-Host "Branch list: $BranchListFile"
 
 if (-not (Test-Path $BranchListFile)) {
     Write-Host "ERROR: release-branches.txt was not found."
