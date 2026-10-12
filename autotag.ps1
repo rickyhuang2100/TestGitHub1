@@ -110,6 +110,94 @@ Write-Host "ERROR: Tag $NewTag already exists."
 exit 1
 }
 
+# ========================================
+# Merge branches from release-branches.txt
+# ========================================
+
+$BranchListFile = Join-Path $RepoRoot "release-branches.txt"
+
+if (-not (Test-Path $BranchListFile)) {
+    Write-Host "ERROR: release-branches.txt was not found."
+    exit 1
+}
+
+$ReleaseBranches = @(
+    Get-Content $BranchListFile |
+    ForEach-Object { $_.Trim() } |
+    Where-Object { $_ -ne "" -and -not $_.StartsWith("#") } |
+    Select-Object -Unique
+)
+
+if ($ReleaseBranches.Count -eq 0) {
+    Write-Host "ERROR: No branches specified in release-branches.txt."
+    exit 1
+}
+
+# Make sure the working tree is clean before merging
+if ((git status --porcelain | Measure-Object -Line).Lines -gt 0) {
+    Write-Host "ERROR: Working tree is not clean."
+    Write-Host "Please commit or stash changes before merging."
+    exit 1
+}
+
+# Update remote branch information
+git fetch origin
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: git fetch failed."
+    exit 1
+}
+
+# Verify every branch exists before merging anything
+foreach ($Branch in $ReleaseBranches) {
+
+    git show-ref --verify --quiet "refs/remotes/origin/$Branch"
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Remote branch not found: origin/$Branch"
+        exit 1
+    }
+}
+
+# Merge each selected branch
+foreach ($Branch in $ReleaseBranches) {
+
+    $RemoteBranch = "origin/$Branch"
+
+    Write-Host ""
+    Write-Host "Checking branch: $Branch"
+
+    git merge-base --is-ancestor $RemoteBranch "main"
+    $MergeCheck = $LASTEXITCODE
+
+    if ($MergeCheck -eq 0) {
+        Write-Host "Already merged: $Branch"
+        continue
+    }
+
+    if ($MergeCheck -ne 1) {
+        Write-Host "ERROR: Cannot check branch: $Branch"
+        exit 1
+    }
+
+    Write-Host "Merging $RemoteBranch into main..."
+
+    git merge --no-edit --no-ff $RemoteBranch
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "ERROR: Merge failed for $Branch."
+        Write-Host "Resolve conflicts before continuing."
+        Write-Host "Do not create a release tag yet."
+        exit 1
+    }
+
+    Write-Host "Merged successfully: $Branch"
+}
+
+Write-Host ""
+Write-Host "OK: All selected branches have been merged into main."
+
 # Enter tag description
 
 Write-Host ""
