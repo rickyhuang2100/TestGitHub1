@@ -178,6 +178,9 @@ foreach ($Branch in $ReleaseBranches) {
     }
 }
 
+# ========================================
+# Pre-check all branches before merging
+# ========================================
 Write-Host ""
 Write-Host "Pre-checking merge conflicts..."
 
