@@ -15,8 +15,8 @@ Write-Host ""
 $RepoRoot = git rev-parse --show-toplevel 2>$null
 
 if (-not $RepoRoot) {
-Write-Host "ERROR: Not a Git repository."
-exit 1
+    Write-Host "ERROR: Not a Git repository."
+    exit 1
 }
 
 $RepoRoot = $RepoRoot.Trim()
@@ -28,9 +28,9 @@ Write-Host "Repository: $RepoRoot"
 $CurrentBranch = git branch --show-current
 
 if ($CurrentBranch -ne "main") {
-Write-Host "ERROR: Current branch is not main."
-Write-Host "Current branch: $CurrentBranch"
-exit 1
+    Write-Host "ERROR: Current branch is not main."
+    Write-Host "Current branch: $CurrentBranch"
+    exit 1
 }
 
 Write-Host "Current branch: main"
@@ -40,7 +40,7 @@ Write-Host "Current branch: main"
 $Version = git describe --tags --abbrev=0 2>$null
 
 if (-not $Version) {
-$Version = "v0.0.0"
+    $Version = "v0.0.0"
 }
 
 $Version = $Version.Trim()
@@ -53,49 +53,49 @@ $VersionClean = $Version -replace '^v', ''
 $VersionParts = $VersionClean.Split('.')
 
 if ($VersionParts.Count -ne 3) {
-Write-Host "ERROR: Version format must be vX.X.X."
-exit 1
+    Write-Host "ERROR: Version format must be vX.X.X."
+    exit 1
 }
 
 try {
-$Major = [int]$VersionParts[0]
-$Minor = [int]$VersionParts[1]
-$Patch = [int]$VersionParts[2]
+    $Major = [int]$VersionParts[0]
+    $Minor = [int]$VersionParts[1]
+    $Patch = [int]$VersionParts[2]
 }
 catch {
-Write-Host "ERROR: Cannot parse version."
-exit 1
+    Write-Host "ERROR: Cannot parse version."
+    exit 1
 }
 
 # Increase version
 
 switch ($VersionType.ToLower()) {
 
-"major" {
-    $Major++
-    $Minor = 0
-    $Patch = 0
-}
+    "major" {
+        $Major++
+        $Minor = 0
+        $Patch = 0
+    }
 
-"minor" {
-    $Minor++
-    $Patch = 0
-}
+    "minor" {
+        $Minor++
+        $Patch = 0
+    }
 
-"patch" {
-    $Patch++
-}
+    "patch" {
+        $Patch++
+    }
 
-default {
-    Write-Host "ERROR: VersionType must be major, minor or patch."
-    Write-Host ""
-    Write-Host "Usage:"
-    Write-Host "  .\autotag.ps1"
-    Write-Host "  .\autotag.ps1 patch"
-    Write-Host "  .\autotag.ps1 minor"
-    Write-Host "  .\autotag.ps1 major"
-    exit 1
-}
+    default {
+        Write-Host "ERROR: VersionType must be major, minor or patch."
+        Write-Host ""
+        Write-Host "Usage:"
+        Write-Host "  .\autotag.ps1"
+        Write-Host "  .\autotag.ps1 patch"
+        Write-Host "  .\autotag.ps1 minor"
+        Write-Host "  .\autotag.ps1 major"
+        exit 1
+    }
 
 }
 
@@ -108,8 +108,8 @@ Write-Host "New version: $NewTag"
 $TagExists = git tag -l $NewTag
 
 if ($TagExists) {
-Write-Host "ERROR: Tag $NewTag already exists."
-exit 1
+    Write-Host "ERROR: Tag $NewTag already exists."
+    exit 1
 }
 
 # ========================================
@@ -178,6 +178,42 @@ foreach ($Branch in $ReleaseBranches) {
     }
 }
 
+Write-Host ""
+Write-Host "Pre-checking merge conflicts..."
+
+foreach ($Branch in $ReleaseBranches) {
+
+    $RemoteBranch = "origin/$Branch"
+
+    # Skip branches already merged into main
+    git merge-base --is-ancestor $RemoteBranch "main"
+    $MergeCheck = $LASTEXITCODE
+
+    if ($MergeCheck -eq 0) {
+        Write-Host "Already merged: $Branch"
+        continue
+    }
+
+    if ($MergeCheck -ne 1) {
+        Write-Host "ERROR: Cannot check branch: $Branch"
+        exit 1
+    }
+
+    # Check whether the branch can be merged without conflicts
+    git merge-tree --write-tree main $RemoteBranch
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Merge conflict or merge check failed: $Branch"
+        Write-Host "Release cancelled. No branches have been merged by this script."
+        exit 1
+    }
+
+    Write-Host "OK: No merge conflict: $Branch"
+}
+
+Write-Host ""
+Write-Host "OK: All selected branches passed the pre-check."
+
 # Merge each selected branch
 foreach ($Branch in $ReleaseBranches) {
 
@@ -233,20 +269,20 @@ $TagLines = @()
 
 while ($true) {
 
-$Line = Read-Host ">"
+    $Line = Read-Host ">"
 
-if ([string]::IsNullOrWhiteSpace($Line)) {
-    break
-}
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        break
+    }
 
-$TagLines += $Line
+    $TagLines += $Line
 
 }
 
 if ($TagLines.Count -eq 0) {
-Write-Host ""
-Write-Host "ERROR: Tag description cannot be empty."
-exit 1
+    Write-Host ""
+    Write-Host "ERROR: Tag description cannot be empty."
+    exit 1
 }
 
 $TagMessage = $TagLines -join "`n"
@@ -269,8 +305,8 @@ Write-Host "Adding all files..."
 git add -A
 
 if ($LASTEXITCODE -ne 0) {
-Write-Host "ERROR: git add failed."
-exit 1
+    Write-Host "ERROR: git add failed."
+    exit 1
 }
 
 # Create release commit message
@@ -278,7 +314,7 @@ exit 1
 $CommitMessage = "Release $NewTag - $FirstLine"
 
 if ($TagLines.Count -gt 1) {
-$RemainingLines = $TagLines[1..($TagLines.Count - 1)] -join "`n"
+    $RemainingLines = $TagLines[1..($TagLines.Count - 1)] -join "`n"
     $CommitMessage = "$CommitMessage`n$RemainingLines"
 }
 
@@ -290,8 +326,8 @@ Write-Host "Creating release commit..."
 git commit --allow-empty -m "$CommitMessage"
 
 if ($LASTEXITCODE -ne 0) {
-Write-Host "ERROR: git commit failed."
-exit 1
+    Write-Host "ERROR: git commit failed."
+    exit 1
 }
 
 # Get release commit
@@ -310,8 +346,8 @@ Write-Host "Creating tag: $NewTag"
 git tag -a $NewTag $ReleaseCommit -m "$TagMessage"
 
 if ($LASTEXITCODE -ne 0) {
-Write-Host "ERROR: git tag failed."
-exit 1
+    Write-Host "ERROR: git tag failed."
+    exit 1
 }
 
 # Verify main and tag
@@ -325,9 +361,9 @@ Write-Host "main: $MainCommit"
 Write-Host "tag : $TagCommit"
 
 if ($MainCommit -ne $TagCommit) {
-Write-Host ""
-Write-Host "ERROR: main and tag point to different commits."
-exit 1
+    Write-Host ""
+    Write-Host "ERROR: main and tag point to different commits."
+    exit 1
 }
 
 Write-Host "OK: main and tag point to the same commit."
@@ -357,8 +393,8 @@ $DiffOutput = @(
 )
 
 if ($LASTEXITCODE -ne 0) {
-Write-Host "ERROR: Failed to compare tags."
-exit 1
+    Write-Host "ERROR: Failed to compare tags."
+    exit 1
 }
 
 # Convert relative paths to full paths
@@ -398,8 +434,8 @@ $FullPaths = @(
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
 
 if ([string]::IsNullOrWhiteSpace($DesktopPath)) {
-Write-Host "ERROR: Cannot find Windows Desktop."
-exit 1
+    Write-Host "ERROR: Cannot find Windows Desktop."
+    exit 1
 }
 
 # ========================================
@@ -453,8 +489,8 @@ Write-Host "Pushing main..."
 git push origin main
 
 if ($LASTEXITCODE -ne 0) {
-Write-Host "ERROR: Failed to push main."
-exit 1
+    Write-Host "ERROR: Failed to push main."
+    exit 1
 }
 
 # Push tag
@@ -465,8 +501,8 @@ Write-Host "Pushing tag: $NewTag"
 git push origin $NewTag
 
 if ($LASTEXITCODE -ne 0) {
-Write-Host "ERROR: Failed to push tag."
-exit 1
+    Write-Host "ERROR: Failed to push tag."
+    exit 1
 }
 
 # Done
@@ -485,12 +521,12 @@ Write-Host "Changed files:"
 Write-Host "----------------------------------------"
 
 if ($FullPaths.Count -eq 0) {
-Write-Host "(No added or modified files)"
+    Write-Host "(No added or modified files)"
 }
 else {
-foreach ($Path in $FullPaths) {
-    Write-Host $Path
-}
+    foreach ($Path in $FullPaths) {
+        Write-Host $Path
+    }
 }
 
 Write-Host ""
