@@ -541,3 +541,4 @@ Write-Host "----------------------------------------"
 Write-Host $TagMessage
 Write-Host "----------------------------------------"
 Write-Host ""
+Start-Process notepad.exe -ArgumentList "`"$OutputFile`""
