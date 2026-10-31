@@ -542,3 +542,279 @@ Write-Host $TagMessage
 Write-Host "----------------------------------------"
 Write-Host ""
 Start-Process notepad.exe -ArgumentList "`"$OutputFile`""
+
+# ========================================
+# Generate Release Report
+# ========================================
+
+Write-Host ""
+Write-Host "========================================"
+Write-Host "Generate Release Report"
+Write-Host "========================================"
+
+try {
+
+    # Get release commit
+    $ReleaseCommit = git rev-parse $NewTag
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot get release commit."
+    }
+
+    # Get previous tag commit
+    $PreviousCommit = git rev-parse $Version
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot get previous tag commit."
+    }
+
+    # Get commit history
+    $CommitHistory = @(
+        git log "$Version..$NewTag" `
+            --reverse `
+            --format="### Commit %H%n- Author: %an%n- Date: %ad%n- Message: %s%n" `
+            --date=iso
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot get commit history."
+    }
+
+    # Get complete Git Diff
+    $GitDiff = @(
+        git diff --no-ext-diff --no-color --binary $Version $NewTag
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot get Git Diff."
+    }
+
+    # Get changed file list
+    $ChangedFiles = @(
+        git diff --name-status --no-renames $Version $NewTag
+    )
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot get changed files."
+    }
+
+    # Get desktop path
+    $DesktopPath = [Environment]::GetFolderPath("Desktop")
+
+    if ([string]::IsNullOrWhiteSpace($DesktopPath)) {
+        throw "Cannot find Windows Desktop."
+    }
+
+    # Generate unique report filename
+    $Serial = 0
+
+    do {
+
+        if ($Serial -eq 0) {
+            $ReportName = "ReleaseReport_$NewTag.md"
+        }
+        else {
+            $ReportName = "ReleaseReport_{0}_{1:D3}.md" -f $NewTag, $Serial
+        }
+
+        $ReportPath = Join-Path $DesktopPath $ReportName
+
+        $Serial++
+
+    } while (Test-Path -LiteralPath $ReportPath)
+
+    # Create report content
+    $Report = New-Object System.Text.StringBuilder
+
+    [void]$Report.AppendLine("---")
+    [void]$Report.AppendLine("report_type: git_release_report")
+    [void]$Report.AppendLine("repository: $(Split-Path $RepoRoot -Leaf)")
+    [void]$Report.AppendLine("previous_tag: $Version")
+    [void]$Report.AppendLine("release_tag: $NewTag")
+    [void]$Report.AppendLine("release_commit: $ReleaseCommit")
+    [void]$Report.AppendLine("release_date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
+    [void]$Report.AppendLine("---")
+
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("# Release $NewTag")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("## Release Notes")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine($TagMessage)
+
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("---")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("## Release Information")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("- Repository: $(Split-Path $RepoRoot -Leaf)")
+    [void]$Report.AppendLine("- Previous Tag: $Version")
+    [void]$Report.AppendLine("- Release Tag: $NewTag")
+    [void]$Report.AppendLine("- Previous Commit: $PreviousCommit")
+    [void]$Report.AppendLine("- Release Commit: $ReleaseCommit")
+
+    # Commit History
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("---")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("# Commit History")
+    [void]$Report.AppendLine("")
+
+    foreach ($Line in $CommitHistory) {
+        [void]$Report.AppendLine($Line)
+    }
+
+    # Changed Files
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("---")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("# Changed Files")
+    [void]$Report.AppendLine("")
+
+    foreach ($Item in $ChangedFiles) {
+
+        $Parts = $Item -split "`t", 2
+
+        if ($Parts.Count -ne 2) {
+            continue
+        }
+
+        $Status = $Parts[0]
+        $RelativePath = $Parts[1]
+
+        [void]$Report.AppendLine("- [$Status] $RelativePath")
+    }
+
+    # Before / After source code
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("---")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("# File Change Details")
+    [void]$Report.AppendLine("")
+
+    foreach ($Item in $ChangedFiles) {
+
+        $Parts = $Item -split "`t", 2
+
+        if ($Parts.Count -ne 2) {
+            continue
+        }
+
+        $Status = $Parts[0]
+        $RelativePath = $Parts[1]
+
+        $Extension = [System.IO.Path]::GetExtension($RelativePath).ToLower()
+
+        $CodeExtensions = @(
+            ".cs", ".aspx", ".ascx", ".master",
+            ".vb", ".js", ".ts", ".sql",
+            ".html", ".htm", ".css", ".ps1",
+            ".json", ".xml", ".config", ".sh",
+            ".yaml", ".yml"
+        )
+
+        [void]$Report.AppendLine("## $RelativePath")
+        [void]$Report.AppendLine("")
+        [void]$Report.AppendLine("- Change Type: $Status")
+        [void]$Report.AppendLine("- Full Path: $(Join-Path $RepoRoot ($RelativePath -replace '/', '\'))")
+
+        if ($CodeExtensions -contains $Extension) {
+
+            $Language = switch ($Extension) {
+                ".cs" { "csharp" }
+                ".aspx" { "aspx" }
+                ".vb" { "vbnet" }
+                ".js" { "javascript" }
+                ".ts" { "typescript" }
+                ".sql" { "sql" }
+                ".json" { "json" }
+                ".xml" { "xml" }
+                ".config" { "xml" }
+                ".html" { "html" }
+                ".htm" { "html" }
+                ".css" { "css" }
+                ".ps1" { "powershell" }
+                ".sh" { "bash" }
+                default { "" }
+            }
+
+            # Before
+            [void]$Report.AppendLine("")
+            [void]$Report.AppendLine("### Before Change")
+            [void]$Report.AppendLine("")
+
+            if ($Status -eq "A") {
+                [void]$Report.AppendLine("New file. No previous content.")
+            }
+            else {
+
+                $Before = git show "${Version}:$RelativePath" 2>$null
+
+                if ($LASTEXITCODE -eq 0) {
+                    [void]$Report.AppendLine("````$Language")
+                    [void]$Report.AppendLine(($Before -join "`n"))
+                    [void]$Report.AppendLine("````")
+                }
+                else {
+                    [void]$Report.AppendLine("Unable to retrieve previous content.")
+                }
+            }
+
+            # After
+            [void]$Report.AppendLine("")
+            [void]$Report.AppendLine("### After Change")
+            [void]$Report.AppendLine("")
+
+            if ($Status -eq "D") {
+                [void]$Report.AppendLine("Deleted file. No current content.")
+            }
+            else {
+
+                $After = git show "${NewTag}:$RelativePath" 2>$null
+
+                if ($LASTEXITCODE -eq 0) {
+                    [void]$Report.AppendLine("````$Language")
+                    [void]$Report.AppendLine(($After -join "`n"))
+                    [void]$Report.AppendLine("````")
+                }
+                else {
+                    [void]$Report.AppendLine("Unable to retrieve current content.")
+                }
+            }
+        }
+
+        [void]$Report.AppendLine("")
+        [void]$Report.AppendLine("---")
+    }
+
+    # Complete Git Diff
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("# Complete Git Diff")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine("Comparison: $Version -> $NewTag")
+    [void]$Report.AppendLine("")
+    [void]$Report.AppendLine('```diff')
+    [void]$Report.AppendLine(($GitDiff -join "`n"))
+    [void]$Report.AppendLine('```')
+
+    # Write UTF-8 without BOM
+    $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+    [System.IO.File]::WriteAllText(
+        $ReportPath,
+        $Report.ToString(),
+        $Utf8NoBom
+    )
+
+    Write-Host ""
+    Write-Host "Release Report generated successfully."
+    Write-Host "Report: $ReportPath" -ForegroundColor Green
+
+}
+catch {
+
+    Write-Host ""
+    Write-Host "WARNING: Git Release completed, but Release Report generation failed." -ForegroundColor Yellow
+    Write-Host $_.Exception.Message -ForegroundColor Yellow
+
+}
