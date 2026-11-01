@@ -23,6 +23,21 @@ $RepoRoot = $RepoRoot.Trim()
 
 Write-Host "Repository: $RepoRoot"
 
+# Update remote branches
+Write-Host ""
+Write-Host "Fetching remote branches..."
+
+# fetch：取得遠端最新分支資訊。
+# --prune：清除遠端已經刪除的分支資訊。
+git fetch origin --prune
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: git fetch failed."
+    exit 1
+}
+
+Write-Host "Remote branches updated successfully."
+
 # Check current branch
 
 $CurrentBranch = git branch --show-current
@@ -159,8 +174,6 @@ if ((git status --porcelain | Measure-Object -Line).Lines -gt 0) {
     exit 1
 }
 
-# Update remote branch information
-git fetch origin
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: git fetch failed."
