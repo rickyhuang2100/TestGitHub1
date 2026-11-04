@@ -160,7 +160,9 @@ if ((git status --porcelain | Measure-Object -Line).Lines -gt 0) {
 }
 
 # Update remote branch information
-git fetch origin
+# fetch：取得遠端最新分支資訊。
+# --prune：清除遠端已經刪除的分支資訊
+git fetch origin --prune
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: git fetch failed."
