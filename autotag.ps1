@@ -3,7 +3,122 @@ param(
 
     [string]$BranchListPath = ""
 )
+# ============================================================
+# Release Report 自動上傳 LLM Wiki
+# ============================================================
 
+function Upload-ReleaseReport {
+
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
+    # 1. 確認檔案存在
+    if (-not (Test-Path $FilePath -PathType Leaf)) {
+        throw "找不到 Release Report：$FilePath"
+    }
+
+    # 2. 取得 API Key
+    $ApiKey = $env:LLMWIKI_UPLOAD_API_KEY
+
+    if ([string]::IsNullOrWhiteSpace($ApiKey)) {
+        throw "尚未設定環境變數 LLMWIKI_UPLOAD_API_KEY"
+    }
+
+    # 3. 設定 API URL
+    $ApiUrl = "https://localhost:44315/ReleaseUpload.ashx"
+
+    # 4. 載入 HttpClient
+    Add-Type -AssemblyName System.Net.Http
+
+    $HttpClient = $null
+    $Multipart = $null
+    $FileStream = $null
+    $Response = $null
+
+    try {
+
+        $HttpClient = [System.Net.Http.HttpClient]::new()
+
+        # 設定 API Key
+        $HttpClient.DefaultRequestHeaders.TryAddWithoutValidation(
+            "X-Api-Key",
+            $ApiKey
+        ) | Out-Null
+
+        # 5. 建立 Multipart Form Data
+        $Multipart = [System.Net.Http.MultipartFormDataContent]::new()
+
+        # 6. 讀取 Release Report
+        $FileStream = [System.IO.File]::OpenRead($FilePath)
+
+        $FileContent = [System.Net.Http.StreamContent]::new(
+            $FileStream
+        )
+
+        $FileContent.Headers.ContentType =
+            [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse(
+                "text/markdown"
+            )
+
+        $Filename = [System.IO.Path]::GetFileName($FilePath)
+
+        $Multipart.Add(
+            $FileContent,
+            "file",
+            $Filename
+        )
+
+        Write-Host ""
+        Write-Host "正在上傳 Release Report..." -ForegroundColor Cyan
+        Write-Host "檔案：$Filename"
+
+        # 7. POST 上傳
+        $Response = $HttpClient.PostAsync(
+            $ApiUrl,
+            $Multipart
+        ).GetAwaiter().GetResult()
+
+        $ResponseText = $Response.Content.ReadAsStringAsync().
+            GetAwaiter().GetResult()
+
+        # 8. 解析 JSON
+        $Result = $ResponseText | ConvertFrom-Json
+
+        if (-not $Response.IsSuccessStatusCode -or
+            -not $Result.success) {
+
+            throw "上傳失敗：$($Result.message)"
+        }
+
+        Write-Host ""
+        Write-Host "Release Report 上傳成功！" -ForegroundColor Green
+        Write-Host "Server 檔名：$($Result.filename)"
+        Write-Host "訊息：$($Result.message)"
+
+        return $Result
+
+    }
+    finally {
+
+        if ($Response -ne $null) {
+            $Response.Dispose()
+        }
+
+        if ($Multipart -ne $null) {
+            $Multipart.Dispose()
+        }
+
+        if ($FileStream -ne $null) {
+            $FileStream.Dispose()
+        }
+
+        if ($HttpClient -ne $null) {
+            $HttpClient.Dispose()
+        }
+    }
+}
 Write-Host ""
 Write-Host "========================================"
 Write-Host "Git Auto Tag"
@@ -811,6 +926,30 @@ try {
     Write-Host ""
     Write-Host "Release Report generated successfully."
     Write-Host "Report: $ReportPath" -ForegroundColor Green
+
+    # ============================================================
+    # 自動上傳 Release Report 至 LLM Wiki
+    # ============================================================
+
+    try {
+
+        Write-Host ""
+        Write-Host "開始上傳 Release Report 至 LLM Wiki..."
+
+        $UploadResult = Upload-ReleaseReport -FilePath $ReportPath
+
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "LLM Wiki 上傳失敗！" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Yellow
+
+        Write-Host ""
+        Write-Host "Git Release 已完成，Release Report 保留於：" -ForegroundColor Yellow
+        Write-Host $ReportPath
+
+    }
 
 }
 catch {
