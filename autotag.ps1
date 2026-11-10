@@ -79,7 +79,7 @@ function Upload-ReleaseReport {
 
         Write-Host ""
         Write-Host "starting Release Report..." -ForegroundColor Cyan
-        Write-Host "file：$Filename"
+        Write-Host "file:$Filename"
 
         # 7. POST 上傳
         $Response = $HttpClient.PostAsync(
