@@ -49,10 +49,10 @@ function Upload-ReleaseReport {
         $HttpClient = [System.Net.Http.HttpClient]::new()
 
         # 設定 API Key
-        $HttpClient.DefaultRequestHeaders.TryAddWithoutValidation(
-            "X-Api-Key",
-            $ApiKey
-        ) | Out-Null
+        #$HttpClient.DefaultRequestHeaders.TryAddWithoutValidation(
+            #$"X-Api-Key",
+            #$ApiKey
+        #) | Out-Null
 
         # 5. 建立 Multipart Form Data
         $Multipart = [System.Net.Http.MultipartFormDataContent]::new()
