@@ -833,7 +833,14 @@ if (Test-Path -LiteralPath $ReportPath -PathType Leaf) {
         Write-Host ""
         Write-Host "開始上傳 Release Report 至 LLM Wiki..."
         $UploadResult = Upload-ReleaseReport -FilePath $ReportPath
-        Write-Host $UploadResult
+        if ($UploadResult.success) {
+            Write-Host "上傳成功！" -ForegroundColor Green
+            Write-Host "檔案名稱：$($UploadResult.filename)"
+        }
+        else {
+            Write-Host "上傳失敗！" -ForegroundColor Red
+            Write-Host $UploadResult.message
+        }
 
     }
     catch {
