@@ -828,8 +828,19 @@ catch {
 # ============================================================
 
 if (Test-Path -LiteralPath $ReportPath -PathType Leaf) {
+
+    try {
         Write-Host ""
-        Write-Host "開始上傳 Release Report 至 LLM Wiki..."
+        Write-Host "starting upload of Release Report to LLM Wiki..."
         $UploadResult = Upload-ReleaseReport -FilePath $ReportPath
-        Write-Host $UploadResult.success
+        Write-Host "$UploadResult.success"
+
+    }
+    catch {
+        Write-Host ""
+        Write-Host "LLM Wiki upload failed！" 
+        Write-Host ""
+        Write-Host "Git Release ok"
+        Write-Host $ReportPath
+    }
 }
